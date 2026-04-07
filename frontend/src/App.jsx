@@ -32,6 +32,7 @@ function App() {
         setRoomCode(data.payload.roomCode);
         setPlayers(data.payload.players);
         setHost(data.payload.isHost);
+        setGame(data.payload.game); // set current game selection when joining
       }
       if (data.type === 'gameSelected') {
         setGame(data.payload.game);

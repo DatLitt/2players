@@ -55,6 +55,7 @@ wss.on("connection", (ws) => {
                   p === room.host ? "host" : "guest",
                 ),
                 isHost: player === room.host,
+                game: room.game, // send current game selection to new player
               },
             }),
           );
