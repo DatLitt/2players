@@ -149,24 +149,27 @@ function App() {
           <div>
             <h2>Room: {roomCode}</h2>
             <p>Players: {players.length}</p>
-            <h2>Selected Game: {game}</h2>
+            {/* <h2>Selected Game: {game}</h2> */}
           </div>
 
           {/* <span>{host ? '(Host)' : ''}</span> */}
 
-          {host && (
-            <select
-              disabled={!host}
-              onChange={(e) => {
-                selectGame(e.target.value);
-              }}
-            >
-              <option value="tictactoe">Tic Tac Toe</option>
-              <option value="hehe">hehe</option>
-              <option value="hihi">hihi</option>
-            </select>
-          )}
-          <div style={{ marginTop: 20 }}>
+          {/* {host && ( */}
+          <div className="h-full w-full bg-gray-200">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {['tictactoe', 'hihi', 'hehe'].map((g) => (
+                <button
+                  key={g}
+                  onClick={() => selectGame(g)}
+                  className={`flex h-24 w-full items-center justify-center rounded-xl border text-lg font-semibold capitalize transition ${game === g ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100'}`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* )} */}
+          <div>
             {!host && (
               <button
                 className="h-20 w-full rounded-xl bg-green-400 text-2xl font-semibold"
