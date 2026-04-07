@@ -171,12 +171,109 @@ wss.on("connection", (ws) => {
           return;
         }
 
+        // Initialize game state
+        if (room.game === "tictactoe") {
+          room.gameState = {
+            board: Array(9).fill(null),
+            currentPlayer: 0,
+            winner: null,
+          };
+        }
+
         // Start game
         room.players.forEach((player) => {
           player.send(
             JSON.stringify({
               type: "gameStarted",
-              payload: { game: room.game },
+              payload: { game: room.game, gameState: room.gameState },
+            }),
+          );
+        });
+
+        break;
+      }
+
+      case "makeMove": {
+        const room = rooms[ws.roomCode];
+
+        if (!room || !room.gameState) return;
+        if (room.gameState.winner) return;
+
+        const playerIndex = room.players.indexOf(ws);
+        const { index } = payload;
+
+        // Check turn
+        if (playerIndex !== room.gameState.currentPlayer) return;
+
+        // Check if cell is empty
+        if (room.gameState.board[index]) return;
+
+        // Assign symbol
+        const symbol = playerIndex === 0 ? "X" : "O";
+        room.gameState.board[index] = symbol;
+
+        // Check winner
+        const b = room.gameState.board;
+        const lines = [
+          [0, 1, 2],
+          [3, 4, 5],
+          [6, 7, 8],
+          [0, 3, 6],
+          [1, 4, 7],
+          [2, 5, 8],
+          [0, 4, 8],
+          [2, 4, 6],
+        ];
+
+        for (const [a, bIdx, c] of lines) {
+          if (b[a] && b[a] === b[bIdx] && b[a] === b[c]) {
+            room.gameState.winner = b[a];
+            break;
+          }
+        }
+
+        // Check draw
+        if (!room.gameState.winner && b.every((cell) => cell)) {
+          room.gameState.winner = "draw";
+        }
+
+        // Switch turn only if no winner
+        if (!room.gameState.winner) {
+          room.gameState.currentPlayer = 1 - room.gameState.currentPlayer;
+        }
+
+        // Broadcast updated state
+        room.players.forEach((player) => {
+          player.send(
+            JSON.stringify({
+              type: "gameUpdate",
+              payload: room.gameState,
+            }),
+          );
+        });
+
+        break;
+      }
+
+      case "backToRoom": {
+        const room = rooms[ws.roomCode];
+        if (!room) return;
+
+        // Only host can trigger return
+        if (ws !== room.host) return;
+
+        // Reset game-related state
+        room.gameState = null;
+        room.ready = [false, false];
+
+        room.players.forEach((player) => {
+          player.send(
+            JSON.stringify({
+              type: "backToRoom",
+              payload: {
+                game: null,
+                ready: room.ready,
+              },
             }),
           );
         });
