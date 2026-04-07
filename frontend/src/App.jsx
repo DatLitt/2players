@@ -4,7 +4,10 @@ function App() {
   const wsRef = useRef(null);
   const [roomCode, setRoomCode] = useState("");
   const [inputCode, setInputCode] = useState("");
-  const [players, setPlayers] = useState(0);
+  const [game, setGame] = useState("");
+  const [players, setPlayers] = useState([]);
+  const [host, setHost] = useState(false);
+  const [ready, setReady] = useState([false, false]);
 
   useEffect(() => {
     wsRef.current = new WebSocket("ws://localhost:8080");
@@ -18,12 +21,27 @@ function App() {
 
       if (data.type === "roomCreated") {
         setRoomCode(data.payload.roomCode);
-        setPlayers(1);
+        setPlayers(data.payload.players);
+        setHost(data.payload.isHost);
       }
 
       if (data.type === "roomJoined") {
         setRoomCode(data.payload.roomCode);
         setPlayers(data.payload.players);
+        setHost(data.payload.isHost);
+      }
+      if (data.type === "gameSelected") {
+        setGame(data.payload.game);
+      }
+      if (data.type === "playerReady") {
+        setReady(data.payload.ready);
+      }
+
+      if (data.type === "gameStarted") {
+        alert(`Game started: ${data.payload.game}`);
+      }
+      if (data.type === "error") {
+        alert(data.message);
       }
     };
 
@@ -43,26 +61,75 @@ function App() {
       }),
     );
   };
+  const selectGame = (selectedGame) => {
+    wsRef.current?.send(
+      JSON.stringify({
+        type: "selectGame",
+        payload: { game: selectedGame },
+      }),
+    );
+  };
+
+  const sendReady = () => {
+    wsRef.current?.send(JSON.stringify({ type: "playerReady" }));
+  };
+
+  const startGame = () => {
+    wsRef.current?.send(JSON.stringify({ type: "startGame" }));
+  };
 
   return (
     <div style={{ padding: 20 }}>
       <h1>Game Hub</h1>
+      <span> {host ? "(Host)" : ""}</span>
+      <h2>Selected Game: {game}</h2>
 
-      <button onClick={createRoom}>Create Room</button>
+      {!roomCode && <button onClick={createRoom}>Create Room</button>}
+      {host && (
+        <select
+          disabled={!host}
+          onChange={(e) => {
+            selectGame(e.target.value);
+          }}
+        >
+          <option value="tictactoe">Tic Tac Toe</option>
+          <option value="hehe">hehe</option>
+          <option value="hihi">hihi</option>
+        </select>
+      )}
 
-      <div style={{ marginTop: 20 }}>
-        <input
-          value={inputCode}
-          onChange={(e) => setInputCode(e.target.value)}
-          placeholder="Enter room code"
-        />
-        <button onClick={joinRoom}>Join Room</button>
-      </div>
+      {!roomCode && (
+        <div style={{ marginTop: 20 }}>
+          <input
+            value={inputCode}
+            onChange={(e) => setInputCode(e.target.value)}
+            placeholder="Enter room code"
+          />
+          <button onClick={joinRoom}>Join Room</button>
+        </div>
+      )}
 
       {roomCode && (
         <div style={{ marginTop: 20 }}>
           <h2>Room: {roomCode}</h2>
-          <p>Players: {players}</p>
+          <p>Players: {players.length}</p>
+        </div>
+      )}
+
+      {roomCode && (
+        <div style={{ marginTop: 20 }}>
+          {!host && (
+            <button onClick={sendReady} disabled={ready[1]}>
+              {ready[1] ? "Ready ✅" : "Ready"}
+            </button>
+          )}
+
+          {host && (
+            <div>
+              {!ready[1] && <p>Waiting for guest...</p>}
+              {ready[1] && <button onClick={startGame}>Start Game</button>}
+            </div>
+          )}
         </div>
       )}
     </div>

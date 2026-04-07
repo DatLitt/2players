@@ -19,7 +19,9 @@ wss.on("connection", (ws) => {
           .toUpperCase();
 
         rooms[roomCode] = {
+          host: ws,
           players: [ws],
+          game: null,
         };
 
         ws.roomCode = roomCode;
@@ -27,7 +29,7 @@ wss.on("connection", (ws) => {
         ws.send(
           JSON.stringify({
             type: "roomCreated",
-            payload: { roomCode },
+            payload: { roomCode, players: ["host"], isHost: true },
           }),
         );
 
@@ -47,7 +49,134 @@ wss.on("connection", (ws) => {
           player.send(
             JSON.stringify({
               type: "roomJoined",
-              payload: { roomCode, players: room.players.length },
+              payload: {
+                roomCode,
+                players: room.players.map((p) =>
+                  p === room.host ? "host" : "guest",
+                ),
+                isHost: player === room.host,
+              },
+            }),
+          );
+        });
+        console.log(payload);
+
+        break;
+      }
+      case "selectGame": {
+        const { game } = payload;
+        const roomCode = ws.roomCode;
+        const room = rooms[roomCode];
+
+        if (!room) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Room not found",
+            }),
+          );
+          return;
+        }
+
+        // Only host can select game
+        if (ws !== room.host) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Only host can select the game",
+            }),
+          );
+          return;
+        }
+
+        // Save selected game in room state
+        room.game = game;
+
+        // Broadcast to all players
+        room.players.forEach((player) => {
+          player.send(
+            JSON.stringify({
+              type: "gameSelected",
+              payload: { game },
+            }),
+          );
+        });
+
+        break;
+      }
+
+      case "playerReady": {
+        const room = rooms[ws.roomCode];
+        if (!room) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Room not found",
+            }),
+          );
+          return;
+        }
+        // Track ready state: host = 0, guest = 1
+        if (!room.ready) {
+          room.ready = [false, false];
+        }
+        const playerIndex = ws === room.host ? 0 : 1;
+        room.ready[playerIndex] = true;
+        // Notify both players of ready state
+        room.players.forEach((player) => {
+          player.send(
+            JSON.stringify({
+              type: "playerReady",
+              payload: {
+                ready: room.ready,
+              },
+            }),
+          );
+        });
+        break;
+      }
+
+      case "startGame": {
+        const room = rooms[ws.roomCode];
+
+        if (!room) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Room not found",
+            }),
+          );
+          return;
+        }
+
+        // Only host can start the game
+        if (ws !== room.host) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Only host can start the game",
+            }),
+          );
+          return;
+        }
+
+        // Guest must be ready
+        if (!room.ready || !room.ready[1]) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Guest is not ready",
+            }),
+          );
+          return;
+        }
+
+        // Start game
+        room.players.forEach((player) => {
+          player.send(
+            JSON.stringify({
+              type: "gameStarted",
+              payload: { game: room.game },
             }),
           );
         });
