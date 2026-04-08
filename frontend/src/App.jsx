@@ -11,6 +11,11 @@ function App() {
   const [ready, setReady] = useState([false, false]);
   const [gameState, setGameState] = useState(null);
   const [inGame, setInGame] = useState(false);
+  const games = [
+    { name: 'tictactoe', available: true },
+    { name: 'battleship', available: false },
+    { name: 'connect4', available: false },
+  ];
 
   useEffect(() => {
     wsRef.current = new WebSocket('ws://localhost:8080');
@@ -155,18 +160,21 @@ function App() {
           {/* <span>{host ? '(Host)' : ''}</span> */}
 
           {/* {host && ( */}
-          <div className="h-full w-full bg-gray-200">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {['tictactoe', 'hihi', 'hehe'].map((g) => (
-                <button
-                  key={g}
-                  onClick={() => selectGame(g)}
-                  className={`flex h-24 w-full items-center justify-center rounded-xl border text-lg font-semibold capitalize transition ${game === g ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-100'}`}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {games.map((g) => (
+              <button
+                key={g.name}
+                onClick={() => g.available && selectGame(g.name)}
+                disabled={!g.available}
+                className={`h-24 w-full rounded-xl border text-lg font-semibold capitalize transition ${
+                  g.available
+                    ? 'cursor-pointer bg-white hover:bg-gray-100'
+                    : 'cursor-not-allowed bg-gray-300 text-gray-500'
+                } `}
+              >
+                {g.available ? g.name : `${g.name} (Coming Soon)`}
+              </button>
+            ))}
           </div>
           {/* )} */}
           <div>
