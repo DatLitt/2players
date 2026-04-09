@@ -11,9 +11,10 @@ function App() {
   const [ready, setReady] = useState([false, false]);
   const [gameState, setGameState] = useState(null);
   const [inGame, setInGame] = useState(false);
+  const [playerIndex, setPlayerIndex] = useState(null);
   const games = [
     { name: 'tictactoe', available: true },
-    { name: 'battleship', available: false },
+    { name: 'battleship', available: true },
     { name: 'connect4', available: false },
   ];
 
@@ -48,6 +49,7 @@ function App() {
       if (data.type === 'gameStarted') {
         setGame(data.payload.game);
         setGameState(data.payload.gameState);
+        setPlayerIndex(data.payload.playerIndex); // <-- add this
         setInGame(true);
       }
       if (data.type === 'gameUpdate') {
@@ -98,11 +100,11 @@ function App() {
     wsRef.current?.send(JSON.stringify({ type: 'startGame' }));
   };
 
-  const makeMove = (index) => {
+  const makeMove = (payload) => {
     wsRef.current?.send(
       JSON.stringify({
         type: 'makeMove',
-        payload: { index },
+        payload, // send the full payload object
       }),
     );
   };
@@ -118,6 +120,7 @@ function App() {
           gameState={gameState}
           makeMove={makeMove}
           backToRoom={backToRoom}
+          playerIndex={playerIndex} // <-- pass playerIndex
         />
       </div>
     );
@@ -167,12 +170,18 @@ function App() {
                 onClick={() => g.available && selectGame(g.name)}
                 disabled={!g.available}
                 className={`h-24 w-full rounded-xl border text-lg font-semibold capitalize transition ${
-                  g.available
-                    ? 'cursor-pointer bg-white hover:bg-gray-100'
-                    : 'cursor-not-allowed bg-gray-300 text-gray-500'
-                } `}
+                  !g.available
+                    ? 'cursor-not-allowed bg-gray-300 text-gray-500'
+                    : game === g.name
+                      ? 'bg-blue-500 text-white ring-4 ring-blue-300'
+                      : 'cursor-pointer bg-white hover:bg-gray-100'
+                }`}
               >
-                {g.available ? g.name : `${g.name} (Coming Soon)`}
+                {!g.available
+                  ? `${g.name} (Coming Soon)`
+                  : game === g.name
+                    ? `${g.name} ✓`
+                    : g.name}
               </button>
             ))}
           </div>

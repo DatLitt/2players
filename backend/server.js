@@ -179,11 +179,15 @@ wss.on("connection", (ws) => {
         }
 
         // Start game
-        room.players.forEach((player) => {
+        room.players.forEach((player, idx) => {
           player.send(
             JSON.stringify({
               type: "gameStarted",
-              payload: { game: room.game, gameState: room.gameState },
+              payload: {
+                game: room.game,
+                gameState: room.gameState,
+                playerIndex: idx, // send player's own index
+              },
             }),
           );
         });

@@ -1,6 +1,18 @@
-import { gameComponents } from '../games';
+import TicTacToe from '../games/tictactoe/TicTacToe';
+import Battleship from '../games/battleship/Battleship';
 
-const GameContainer = ({ game, gameState, makeMove, backToRoom }) => {
+const gameComponents = {
+  tictactoe: TicTacToe,
+  battleship: Battleship,
+};
+
+const GameContainer = ({
+  game,
+  gameState,
+  makeMove,
+  backToRoom,
+  playerIndex,
+}) => {
   const Game = gameComponents[game];
   return (
     <div className="flex min-h-dvh w-screen items-center justify-center border-2 border-solid border-black text-3xl">
@@ -9,6 +21,7 @@ const GameContainer = ({ game, gameState, makeMove, backToRoom }) => {
           gameState={gameState}
           makeMove={makeMove}
           backToRoom={backToRoom}
+          playerIndex={playerIndex}
         />
       ) : (
         'No game selected'
