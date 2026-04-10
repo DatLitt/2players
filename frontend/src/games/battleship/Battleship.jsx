@@ -149,7 +149,7 @@ export default function Battleship({
       {gameState.phase === 'battle' && (
         <div className="flex flex-col items-center gap-4">
           {gameState.winner == null && (
-            <p>
+            <p className="text-white">
               {isYourTurn
                 ? 'Your turn! Attack enemy board'
                 : 'Waiting for opponent...'}
