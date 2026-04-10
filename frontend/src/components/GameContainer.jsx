@@ -15,7 +15,7 @@ const GameContainer = ({
 }) => {
   const Game = gameComponents[game];
   return (
-    <div className="flex min-h-dvh w-screen items-center justify-center border-2 border-solid border-black text-3xl">
+    <div className="flex min-h-dvh w-screen items-center justify-center border-2 border-solid border-black bg-gray-800">
       {Game ? (
         <Game
           gameState={gameState}

@@ -114,7 +114,7 @@ function App() {
   };
   if (inGame) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center p-3">
+      <div className="flex h-screen w-screen items-center justify-center">
         <GameContainer
           game={game}
           gameState={gameState}
@@ -126,28 +126,28 @@ function App() {
     );
   }
   return (
-    <div className="flex min-h-dvh w-full flex-col justify-between bg-gray-100 p-10 text-center">
+    <div className="flex min-h-dvh w-full flex-col items-center justify-between bg-gray-800 p-10 text-center">
       {!roomCode && (
         <>
-          <h1 className="text-4xl font-bold">Game Hub</h1>
+          <h1 className="text-4xl font-bold text-yellow-200">Game Hub</h1>
           <button
-            className="h-20 w-full rounded-xl bg-blue-200"
+            className="h-20 w-full rounded-xl bg-blue-500 text-2xl font-bold text-white"
             onClick={createRoom}
           >
             Create Room
           </button>
           <div className="flex h-20 w-full items-center justify-center rounded-xl bg-blue-200">
             <input
-              className="h-full w-full rounded-l-xl border-none bg-blue-100 p-3 text-center outline-none"
+              className="h-full w-full rounded-l-xl border-none bg-blue-100 p-3 text-center text-2xl outline-none"
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value)}
               placeholder="Enter room code"
             />
             <button
-              className="h-full w-[40%] rounded-r-xl bg-blue-300"
+              className="h-full w-[40%] rounded-r-xl bg-blue-500 text-2xl font-bold text-white"
               onClick={joinRoom}
             >
-              Join Room
+              Join
             </button>
           </div>
         </>
@@ -155,15 +155,19 @@ function App() {
       {roomCode && (
         <>
           <div>
-            <h2>Room: {roomCode}</h2>
-            <p>Players: {players.length}</p>
+            <h2 className="text-4xl font-bold text-yellow-200">
+              Room: {roomCode}
+            </h2>
+            <p className="text-2xl font-semibold text-yellow-100">
+              Players: {players.length}
+            </p>
             {/* <h2>Selected Game: {game}</h2> */}
           </div>
 
           {/* <span>{host ? '(Host)' : ''}</span> */}
 
           {/* {host && ( */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid h-full w-full grid-cols-1 gap-4 md:grid-cols-3">
             {games.map((g) => (
               <button
                 key={g.name}
@@ -174,7 +178,7 @@ function App() {
                     ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                     : game === g.name
                       ? 'bg-blue-500 text-white ring-4 ring-blue-300'
-                      : 'cursor-pointer bg-white hover:bg-gray-100'
+                      : 'cursor-pointer bg-blue-100 hover:bg-gray-100'
                 }`}
               >
                 {!g.available
@@ -186,10 +190,10 @@ function App() {
             ))}
           </div>
           {/* )} */}
-          <div>
+          <div className="w-full">
             {!host && (
               <button
-                className="h-20 w-full rounded-xl bg-green-400 text-2xl font-semibold"
+                className={`h-20 w-full rounded-xl text-2xl font-semibold text-white ${ready[1] ? 'bg-blue-500' : 'bg-green-500'}`}
                 onClick={sendReady}
                 disabled={ready[1]}
               >
@@ -198,7 +202,7 @@ function App() {
             )}
 
             {host && (
-              <div>
+              <div className="w-full">
                 {!ready[1] && (
                   <p className="flex h-20 w-full items-center justify-center rounded-xl bg-gray-400 text-2xl font-semibold">
                     Waiting for guest...
@@ -206,7 +210,7 @@ function App() {
                 )}
                 {ready[1] && (
                   <button
-                    className="h-20 w-full rounded-xl bg-blue-400"
+                    className="h-20 w-full rounded-xl bg-green-500 text-2xl font-semibold text-white"
                     onClick={startGame}
                   >
                     Start Game
