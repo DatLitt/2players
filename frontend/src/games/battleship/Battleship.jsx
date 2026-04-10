@@ -7,6 +7,7 @@ export default function Battleship({
   backToRoom,
 }) {
   const [ships, setShips] = useState([]);
+  const [confirmed, setConfirmed] = useState(false);
   const [direction, setDirection] = useState('horizontal');
   const shipSizes = [2, 3, 4];
 
@@ -37,6 +38,7 @@ export default function Battleship({
   const handleSubmit = () => {
     if (ships.length !== 3) return;
     makeMove({ action: 'placeShips', ships });
+    setConfirmed(true);
   };
 
   const isYourTurn = gameState.currentPlayer === playerIndex;
@@ -87,6 +89,7 @@ export default function Battleship({
                   if (alreadyAttacked) return;
                   onClick(row, col);
                 } else {
+                  if (confirmed) return;
                   onClick(row, col);
                 }
               }}
@@ -102,9 +105,11 @@ export default function Battleship({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <h1 className="text-xl font-bold">Battleship</h1>
+      <h1 className="text-4xl font-bold text-yellow-200">Battleship</h1>
       {gameState.winner !== null && (
-        <div className="text-xl font-bold">
+        <div
+          className={`text-xl font-bold ${gameState.winner === playerIndex ? 'text-green-500' : 'text-red-500'}`}
+        >
           {gameState.winner === playerIndex ? 'You won!' : 'You lost!'}
         </div>
       )}
@@ -127,11 +132,15 @@ export default function Battleship({
 
           <button
             onClick={handleSubmit}
-            className="rounded bg-blue-600 px-4 py-2 text-white"
-            disabled={ships.length !== 3}
+            className={`rounded px-4 py-2 text-white ${confirmed ? 'bg-green-600' : 'bg-blue-600'}`}
+            disabled={ships.length !== 3 || confirmed}
           >
-            Confirm Ships
+            {confirmed ? 'Ships Confirmed ✓' : 'Confirm Ships'}
           </button>
+
+          {confirmed && (
+            <p className="text-yellow-300">Waiting for opponent...</p>
+          )}
 
           <p>{ships.length} / 3 ships placed</p>
         </div>
@@ -139,20 +148,22 @@ export default function Battleship({
 
       {gameState.phase === 'battle' && (
         <div className="flex flex-col items-center gap-4">
-          <p>
-            {isYourTurn
-              ? 'Your turn! Attack enemy board'
-              : 'Waiting for opponent...'}
-          </p>
+          {gameState.winner == null && (
+            <p>
+              {isYourTurn
+                ? 'Your turn! Attack enemy board'
+                : 'Waiting for opponent...'}
+            </p>
+          )}
 
           <div className="flex flex-col gap-4 md:flex-row md:gap-6">
             <div className="flex flex-col items-center">
-              <p>Your Board</p>
+              <p className="text-2xl font-semibold text-white">You</p>
               {renderGrid(() => {}, 'self')}
             </div>
 
             <div className="flex flex-col items-center">
-              <p>Enemy Board</p>
+              <p className="text-2xl font-semibold text-white">Enemy</p>
               {renderGrid(
                 (row, col) => makeMove({ action: 'attack', row, col }),
                 'enemy',
