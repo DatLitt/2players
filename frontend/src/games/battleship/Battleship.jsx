@@ -6,23 +6,40 @@ export default function Battleship({
   playerIndex,
   backToRoom,
 }) {
-  const [selectedCells, setSelectedCells] = useState([]);
+  const [ships, setShips] = useState([]);
+  const [direction, setDirection] = useState('horizontal');
+  const shipSizes = [2, 3, 4];
 
-  const toggleCell = (row, col) => {
-    const exists = selectedCells.some((c) => c.row === row && c.col === col);
-    if (exists) {
-      setSelectedCells(
-        selectedCells.filter((c) => !(c.row === row && c.col === col)),
-      );
-    } else {
-      if (selectedCells.length >= 9) return;
-      setSelectedCells([...selectedCells, { row, col }]);
+  const placeShip = (row, col) => {
+    const size = shipSizes[ships.length];
+    if (!size) return;
+
+    const newShip = [];
+
+    for (let i = 0; i < size; i++) {
+      const r = direction === 'vertical' ? row + i : row;
+      const c = direction === 'horizontal' ? col + i : col;
+
+      if (r >= 5 || c >= 5) return;
+
+      // prevent overlap
+      const overlap = ships
+        .flat()
+        .some((cell) => cell.row === r && cell.col === c);
+      if (overlap) return;
+
+      newShip.push({ row: r, col: c });
     }
+
+    setShips([...ships, newShip]);
   };
 
   const handleSubmit = () => {
-    makeMove({ action: 'placeShips', ships: selectedCells });
+    if (ships.length !== 3) return;
+    makeMove({ action: 'placeShips', ships });
   };
+
+  const isYourTurn = gameState.currentPlayer === playerIndex;
 
   const renderGrid = (onClick, type = 'self') => {
     const self = gameState.players?.[playerIndex];
@@ -39,7 +56,7 @@ export default function Battleship({
           if (type === 'self') {
             if (
               self?.ships?.some((s) => s.row === row && s.col === col) ||
-              selectedCells.some((c) => c.row === row && c.col === col)
+              ships.flat().some((c) => c.row === row && c.col === col)
             ) {
               bg = 'bg-green-400';
             }
@@ -65,7 +82,13 @@ export default function Battleship({
             <div
               key={i}
               onClick={() => {
-                if (!alreadyAttacked) onClick(row, col);
+                if (type === 'enemy') {
+                  if (!isYourTurn) return;
+                  if (alreadyAttacked) return;
+                  onClick(row, col);
+                } else {
+                  onClick(row, col);
+                }
               }}
               className={`flex h-14 w-14 cursor-pointer items-center justify-center border ${bg}`}
             />
@@ -77,23 +100,40 @@ export default function Battleship({
 
   if (!gameState) return <div>Loading...</div>;
 
-  const isYourTurn = gameState.currentPlayer === playerIndex;
-
   return (
     <div className="flex flex-col items-center gap-4">
       <h1 className="text-xl font-bold">Battleship</h1>
+      {gameState.winner !== null && (
+        <div className="text-xl font-bold">
+          {gameState.winner === playerIndex ? 'You won!' : 'You lost!'}
+        </div>
+      )}
 
       {gameState.phase === 'setup' && (
         <div className="flex flex-col items-center gap-4">
-          <p>Place your ships (max 9 cells)</p>
-          {renderGrid(toggleCell, 'self')}
+          <p>Place ship size: {shipSizes[ships.length]}</p>
+          <button
+            onClick={() =>
+              setDirection(
+                direction === 'horizontal' ? 'vertical' : 'horizontal',
+              )
+            }
+            className="rounded bg-gray-600 px-4 py-2 text-white"
+          >
+            Direction: {direction}
+          </button>
+
+          {renderGrid(placeShip, 'self')}
+
           <button
             onClick={handleSubmit}
             className="rounded bg-blue-600 px-4 py-2 text-white"
+            disabled={ships.length !== 3}
           >
             Confirm Ships
           </button>
-          <p>{selectedCells.length} / 9 selected</p>
+
+          <p>{ships.length} / 3 ships placed</p>
         </div>
       )}
 
@@ -104,20 +144,24 @@ export default function Battleship({
               ? 'Your turn! Attack enemy board'
               : 'Waiting for opponent...'}
           </p>
-          {isYourTurn
-            ? renderGrid(
+
+          <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+            <div className="flex flex-col items-center">
+              <p>Your Board</p>
+              {renderGrid(() => {}, 'self')}
+            </div>
+
+            <div className="flex flex-col items-center">
+              <p>Enemy Board</p>
+              {renderGrid(
                 (row, col) => makeMove({ action: 'attack', row, col }),
                 'enemy',
-              )
-            : renderGrid(() => {}, 'self')}
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {gameState.winner !== null && (
-        <div className="text-xl font-bold">
-          {gameState.winner === playerIndex ? 'You won!' : 'You lost!'}
-        </div>
-      )}
       <button
         className="z-10 mt-4 rounded bg-green-500 px-4 py-2 text-white"
         onClick={backToRoom}

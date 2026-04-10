@@ -18,11 +18,54 @@ export const battleship = {
     if (newState.phase === "setup") {
       if (payload.action !== "placeShips") return gameState;
 
-      if (!Array.isArray(payload.ships) || payload.ships.length === 0)
+      if (!Array.isArray(payload.ships) || payload.ships.length !== 3) {
         return gameState;
-      if (payload.ships.length > 9) return gameState;
+      }
 
-      newState.players[playerIndex].ships = payload.ships;
+      const expectedSizes = [2, 3, 4];
+      // validate each ship
+      const allCells = [];
+
+      for (let i = 0; i < payload.ships.length; i++) {
+        const ship = payload.ships[i];
+
+        if (!Array.isArray(ship) || ship.length !== expectedSizes[i]) {
+          return gameState;
+        }
+
+        // check straight line (horizontal or vertical)
+        const isSameRow = ship.every((c) => c.row === ship[0].row);
+        const isSameCol = ship.every((c) => c.col === ship[0].col);
+
+        if (!isSameRow && !isSameCol) return gameState;
+
+        // check continuous
+        const sorted = [...ship].sort((a, b) =>
+          isSameRow ? a.col - b.col : a.row - b.row,
+        );
+
+        for (let j = 1; j < sorted.length; j++) {
+          const prev = sorted[j - 1];
+          const curr = sorted[j];
+
+          if (isSameRow && curr.col !== prev.col + 1) return gameState;
+          if (isSameCol && curr.row !== prev.row + 1) return gameState;
+        }
+
+        // check bounds + collect cells
+        for (const cell of ship) {
+          if (cell.row < 0 || cell.row >= 5 || cell.col < 0 || cell.col >= 5) {
+            return gameState;
+          }
+
+          const key = `${cell.row}-${cell.col}`;
+          if (allCells.includes(key)) return gameState; // overlap
+          allCells.push(key);
+        }
+      }
+
+      // flatten ships for easier battle logic
+      newState.players[playerIndex].ships = payload.ships.flat();
 
       // switch to battle if both players placed ships
       if (
