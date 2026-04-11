@@ -1,7 +1,14 @@
+import http from "http";
+import "dotenv/config";
 import { WebSocketServer } from "ws";
 import { games } from "./games/index.js";
 
-const wss = new WebSocketServer({ port: 8080 });
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("Server running");
+});
+
+const wss = new WebSocketServer({ server });
 
 const rooms = {};
 
@@ -259,4 +266,8 @@ wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ type: "connected" }));
 });
 
-console.log("Server running on ws://localhost:8080");
+const PORT = process.env.PORT || 8080;
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
