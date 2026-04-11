@@ -15,11 +15,12 @@ function App() {
   const games = [
     { name: 'tictactoe', available: true },
     { name: 'battleship', available: true },
-    { name: 'connect4', available: false },
+    { name: '', available: false },
   ];
 
   useEffect(() => {
-    wsRef.current = new WebSocket('ws://localhost:8080');
+    const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
+    wsRef.current = new WebSocket(WS_URL);
 
     wsRef.current.onopen = () => {
       console.log('Connected to server');
