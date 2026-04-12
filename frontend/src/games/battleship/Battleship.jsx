@@ -116,7 +116,9 @@ export default function Battleship({
 
       {gameState.phase === 'setup' && (
         <div className="flex flex-col items-center gap-4">
-          <p>Place ship size: {shipSizes[ships.length]}</p>
+          <p className="text-white">
+            Place ship size: {shipSizes[ships.length]}
+          </p>
           <button
             onClick={() =>
               setDirection(

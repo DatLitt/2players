@@ -7,7 +7,7 @@ const TicTacToe = ({ gameState, makeMove, backToRoom, playerIndex }) => {
 
   return (
     <div className="flex flex-col items-center gap-4 pb-10">
-      <h2 className="text-xl font-bold">
+      <h2 className="text-3xl font-bold text-white">
         {gameState.winner
           ? gameState.winner === 'draw'
             ? 'Draw!'
@@ -26,7 +26,7 @@ const TicTacToe = ({ gameState, makeMove, backToRoom, playerIndex }) => {
             onClick={() => {
               if (!cell && !gameState.winner) makeMove({ index: i });
             }}
-            className="flex h-24 w-24 cursor-pointer items-center justify-center border text-2xl"
+            className="flex h-24 w-24 cursor-pointer items-center justify-center border border-white text-5xl font-bold text-white"
           >
             {cell}
           </div>
