@@ -308,12 +308,17 @@ function App() {
 
             {host && (
               <div className="w-full">
-                {!ready[1] && (
+                {!game && (
+                  <p className="flex h-20 w-full items-center justify-center rounded-xl bg-gray-400 text-2xl font-semibold text-white">
+                    Select a game first
+                  </p>
+                )}
+                {game && !ready[1] && (
                   <p className="flex h-20 w-full items-center justify-center rounded-xl bg-gray-400 text-2xl font-semibold">
                     Waiting for guest...
                   </p>
                 )}
-                {ready[1] && (
+                {game && ready[1] && (
                   <button
                     className="h-20 w-full rounded-xl bg-green-500 text-2xl font-semibold text-white"
                     onClick={startGame}

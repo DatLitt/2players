@@ -235,6 +235,16 @@ wss.on("connection", (ws) => {
           return;
         }
 
+        if (!room.game) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Please select a game first",
+            }),
+          );
+          return;
+        }
+
         // Guest must be ready
         if (!room.ready || !room.ready[1]) {
           ws.send(
