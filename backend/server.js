@@ -12,6 +12,11 @@ const wss = new WebSocketServer({ server });
 
 const rooms = {};
 
+const createRoomScore = () => ({
+  host: 0,
+  guest: 0,
+});
+
 const sendRoomUpdate = (roomCode, room) => {
   room.players.forEach((player, idx) => {
     player.send(
@@ -23,6 +28,7 @@ const sendRoomUpdate = (roomCode, room) => {
           isHost: player === room.host,
           game: room.game,
           ready: room.ready || [false, false],
+          score: room.score || createRoomScore(),
           playerCount: room.players.length,
           playerIndex: idx,
         },
@@ -82,6 +88,8 @@ wss.on("connection", (ws) => {
           host: ws,
           players: [ws],
           game: null,
+          score: createRoomScore(),
+          lastScoredOutcome: null,
         };
 
         ws.roomCode = roomCode;
@@ -89,7 +97,12 @@ wss.on("connection", (ws) => {
         ws.send(
           JSON.stringify({
             type: "roomCreated",
-            payload: { roomCode, players: ["host"], isHost: true },
+            payload: {
+              roomCode,
+              players: ["host"],
+              isHost: true,
+              score: rooms[roomCode].score,
+            },
           }),
         );
 
@@ -101,6 +114,13 @@ wss.on("connection", (ws) => {
         const room = rooms[roomCode];
 
         if (!room || room.players.length >= 2) return;
+
+        if (room.players.length === 1) {
+          room.score = createRoomScore();
+          room.lastScoredOutcome = null;
+          room.ready = [false, false];
+          room.gameState = null;
+        }
 
         room.players.push(ws);
         ws.roomCode = roomCode;
@@ -116,6 +136,7 @@ wss.on("connection", (ws) => {
                 ),
                 isHost: player === room.host,
                 game: room.game, // send current game selection to new player
+                score: room.score || createRoomScore(),
               },
             }),
           );
@@ -260,6 +281,7 @@ wss.on("connection", (ws) => {
         if (gameHandler) {
           room.gameState = gameHandler.initGame();
         }
+        room.lastScoredOutcome = null;
 
         // Start game
         room.players.forEach((player, idx) => {
@@ -295,7 +317,59 @@ wss.on("connection", (ws) => {
           payload,
         );
 
+        if (
+          room.gameState?.winner !== null &&
+          room.gameState?.winner !== undefined &&
+          room.lastScoredOutcome !== room.gameState.winner
+        ) {
+          room.score = room.score || createRoomScore();
+
+          if (room.gameState.winner === "draw") {
+            room.score.host += 1;
+            room.score.guest += 1;
+          } else if (
+            typeof room.gameState.winner === "number" &&
+            room.gameState.winner >= 0 &&
+            room.gameState.winner < room.players.length
+          ) {
+            const winnerKey = room.gameState.winner === 0 ? "host" : "guest";
+            room.score[winnerKey] += 1;
+          } else if (
+            room.game === "tictactoe" &&
+            (room.gameState.winner === "X" || room.gameState.winner === "O")
+          ) {
+            const winnerKey = playerIndex === 0 ? "host" : "guest";
+            room.score[winnerKey] += 1;
+          }
+
+          room.lastScoredOutcome = room.gameState.winner;
+        }
+
         // Broadcast updated state
+        room.players.forEach((player) => {
+          player.send(
+            JSON.stringify({
+              type: "gameUpdate",
+              payload: room.gameState,
+            }),
+          );
+        });
+
+        break;
+      }
+
+      case "restartGame": {
+        const room = rooms[ws.roomCode];
+        if (!room) return;
+        if (!room.game) return;
+        if (!room.gameState || !room.gameState.winner) return;
+
+        const gameHandler = games[room.game];
+        if (!gameHandler) return;
+
+        room.gameState = gameHandler.initGame();
+        room.lastScoredOutcome = null;
+
         room.players.forEach((player) => {
           player.send(
             JSON.stringify({
@@ -316,6 +390,7 @@ wss.on("connection", (ws) => {
         room.gameState = null;
         room.ready = [false, false];
         room.game = null;
+        room.lastScoredOutcome = null;
 
         room.players.forEach((player) => {
           player.send(
@@ -324,6 +399,7 @@ wss.on("connection", (ws) => {
               payload: {
                 game: null,
                 ready: room.ready,
+                score: room.score || createRoomScore(),
               },
             }),
           );

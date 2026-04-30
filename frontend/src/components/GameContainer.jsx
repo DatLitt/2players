@@ -10,6 +10,7 @@ const GameContainer = ({
   game,
   gameState,
   makeMove,
+  restartGame,
   backToRoom,
   playerIndex,
 }) => {
@@ -20,6 +21,7 @@ const GameContainer = ({
         <Game
           gameState={gameState}
           makeMove={makeMove}
+          restartGame={restartGame}
           backToRoom={backToRoom}
           playerIndex={playerIndex}
         />

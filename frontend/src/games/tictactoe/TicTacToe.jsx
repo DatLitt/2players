@@ -1,6 +1,13 @@
 import React from 'react';
+import GameActionButton from '../../components/GameActionButton';
 
-const TicTacToe = ({ gameState, makeMove, backToRoom, playerIndex }) => {
+const TicTacToe = ({
+  gameState,
+  makeMove,
+  restartGame,
+  backToRoom,
+  playerIndex,
+}) => {
   if (!gameState) return null;
 
   const mySymbol = playerIndex === 0 ? 'X' : 'O';
@@ -32,14 +39,16 @@ const TicTacToe = ({ gameState, makeMove, backToRoom, playerIndex }) => {
           </div>
         ))}
       </div>
-      {/* {gameState.winner && ( */}
-      <button
-        className="z-10 mt-4 rounded bg-green-500 px-4 py-2 text-white"
-        onClick={backToRoom}
-      >
-        Back to Room
-      </button>
-      {/* )} */}
+      {gameState.winner && (
+        <div className="flex flex-col items-center gap-2 sm:flex-row">
+          <GameActionButton label="Play Again" onClick={restartGame} />
+          <GameActionButton
+            label="Leave Room"
+            onClick={backToRoom}
+            tone="bg-gray-600 hover:bg-gray-700"
+          />
+        </div>
+      )}
     </div>
   );
 };

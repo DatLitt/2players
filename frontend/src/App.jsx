@@ -13,6 +13,7 @@ function App() {
   const [inGame, setInGame] = useState(false);
   const [playerIndex, setPlayerIndex] = useState(null);
   const [copiedRoomCode, setCopiedRoomCode] = useState(false);
+  const [score, setScore] = useState({ host: 0, guest: 0 });
   const games = [
     { name: 'tictactoe', available: true },
     { name: 'battleship', available: true },
@@ -34,6 +35,7 @@ function App() {
         setRoomCode(data.payload.roomCode);
         setPlayers(data.payload.players);
         setHost(data.payload.isHost);
+        setScore(data.payload.score || { host: 0, guest: 0 });
       }
 
       if (data.type === 'roomJoined') {
@@ -41,6 +43,7 @@ function App() {
         setPlayers(data.payload.players);
         setHost(data.payload.isHost);
         setGame(data.payload.game); // set current game selection when joining
+        setScore(data.payload.score || { host: 0, guest: 0 });
       }
       if (data.type === 'roomUpdated') {
         setRoomCode(data.payload.roomCode);
@@ -48,6 +51,7 @@ function App() {
         setHost(data.payload.isHost);
         setGame(data.payload.game);
         setReady(data.payload.ready);
+        setScore(data.payload.score || { host: 0, guest: 0 });
         setGameState(null);
         setInGame(false);
         setPlayerIndex(null);
@@ -59,6 +63,7 @@ function App() {
         setHost(false);
         setGame('');
         setReady([false, false]);
+        setScore({ host: 0, guest: 0 });
         setGameState(null);
         setInGame(false);
         setPlayerIndex(null);
@@ -82,6 +87,7 @@ function App() {
         setGame(null);
         setGameState(null);
         setReady(data.payload.ready);
+        setScore(data.payload.score || { host: 0, guest: 0 });
         setInGame(false);
       }
 
@@ -132,6 +138,9 @@ function App() {
     );
   };
 
+  const restartGame = () => {
+    wsRef.current?.send(JSON.stringify({ type: 'restartGame' }));
+  };
   const backToRoom = () => {
     wsRef.current?.send(JSON.stringify({ type: 'backToRoom' }));
   };
@@ -152,6 +161,7 @@ function App() {
           label: 'You',
           status: 'Host',
           active: true,
+          score: score.host ?? 0,
           tone: 'bg-blue-500 text-white',
         },
         {
@@ -163,6 +173,7 @@ function App() {
                 : 'Not ready'
               : 'Not here yet',
           active: players.length > 1,
+          score: score.guest ?? 0,
           tone:
             players.length > 1
               ? ready[1]
@@ -176,12 +187,14 @@ function App() {
           label: 'Host',
           status: 'Host',
           active: true,
+          score: score.host ?? 0,
           tone: 'bg-blue-500 text-white',
         },
         {
           label: 'You',
           status: ready[1] ? 'Ready' : 'Not ready',
           active: true,
+          score: score.guest ?? 0,
           tone: ready[1]
             ? 'bg-green-500 text-white'
             : 'bg-gray-200 text-gray-700',
@@ -195,6 +208,7 @@ function App() {
           game={game}
           gameState={gameState}
           makeMove={makeMove}
+          restartGame={restartGame}
           backToRoom={backToRoom}
           playerIndex={playerIndex} // <-- pass playerIndex
         />
@@ -267,6 +281,9 @@ function App() {
                   </div>
                   <p className="text-sm font-semibold">{player.label}</p>
                   <p className="text-xs opacity-80">{player.status}</p>
+                  <p className="mt-1 text-xs font-semibold opacity-90">
+                    Score: {player.score}
+                  </p>
                 </div>
               ))}
             </div>

@@ -1,15 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import GameActionButton from '../../components/GameActionButton';
 
 export default function Battleship({
   gameState,
   makeMove,
   playerIndex,
+  restartGame,
   backToRoom,
 }) {
   const [ships, setShips] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
   const [direction, setDirection] = useState('horizontal');
   const shipSizes = [2, 3, 4];
+  const isFreshSetup =
+    gameState?.phase === 'setup' &&
+    gameState.players?.every((player) => (player?.ships?.length || 0) === 0);
+
+  useEffect(() => {
+    if (isFreshSetup) {
+      setShips([]);
+      setConfirmed(false);
+      setDirection('horizontal');
+    }
+  }, [isFreshSetup]);
 
   const placeShip = (row, col) => {
     const size = shipSizes[ships.length];
@@ -175,12 +188,16 @@ export default function Battleship({
         </div>
       )}
 
-      <button
-        className="z-10 mt-4 rounded bg-green-500 px-4 py-2 text-white"
-        onClick={backToRoom}
-      >
-        Back to Room
-      </button>
+      {gameState.winner !== null && (
+        <div className="flex flex-col items-center gap-2 sm:flex-row">
+          <GameActionButton label="Play Again" onClick={restartGame} />
+          <GameActionButton
+            label="Leave Room"
+            onClick={backToRoom}
+            tone="bg-gray-600 hover:bg-gray-700"
+          />
+        </div>
+      )}
     </div>
   );
 }
