@@ -12,8 +12,60 @@ const wss = new WebSocketServer({ server });
 
 const rooms = {};
 
+const sendRoomUpdate = (roomCode, room) => {
+  room.players.forEach((player, idx) => {
+    player.send(
+      JSON.stringify({
+        type: "roomUpdated",
+        payload: {
+          roomCode,
+          players: room.players.map((p) => (p === room.host ? "host" : "guest")),
+          isHost: player === room.host,
+          game: room.game,
+          ready: room.ready || [false, false],
+          playerCount: room.players.length,
+          playerIndex: idx,
+        },
+      }),
+    );
+  });
+};
+
 wss.on("connection", (ws) => {
   console.log("Client connected");
+
+  ws.on("close", () => {
+    const roomCode = ws.roomCode;
+    if (!roomCode) return;
+
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    if (ws === room.host) {
+      if (room.players[1]) {
+        room.players[1].send(
+          JSON.stringify({
+            type: "roomClosed",
+            payload: {
+              message: "Host left the room",
+            },
+          }),
+        );
+      }
+      delete rooms[roomCode];
+      return;
+    }
+
+    room.players = room.players.filter((player) => player !== ws);
+    room.ready = [false, false];
+    room.gameState = null;
+
+    if (room.players.length === 1 && room.players[0] === room.host) {
+      sendRoomUpdate(roomCode, room);
+    } else if (room.players.length === 0) {
+      delete rooms[roomCode];
+    }
+  });
 
   ws.on("message", (msg) => {
     const data = JSON.parse(msg.toString());
@@ -130,7 +182,21 @@ wss.on("connection", (ws) => {
           room.ready = [false, false];
         }
         const playerIndex = ws === room.host ? 0 : 1;
-        room.ready[playerIndex] = true;
+        if (playerIndex !== 1) {
+          room.players.forEach((player) => {
+            player.send(
+              JSON.stringify({
+                type: "playerReady",
+                payload: {
+                  ready: room.ready,
+                },
+              }),
+            );
+          });
+          break;
+        }
+
+        room.ready[playerIndex] = !room.ready[playerIndex];
         // Notify both players of ready state
         room.players.forEach((player) => {
           player.send(
@@ -236,12 +302,10 @@ wss.on("connection", (ws) => {
         const room = rooms[ws.roomCode];
         if (!room) return;
 
-        // Only host can trigger return
-        if (ws !== room.host) return;
-
         // Reset game-related state
         room.gameState = null;
         room.ready = [false, false];
+        room.game = null;
 
         room.players.forEach((player) => {
           player.send(

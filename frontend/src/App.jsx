@@ -12,6 +12,7 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [inGame, setInGame] = useState(false);
   const [playerIndex, setPlayerIndex] = useState(null);
+  const [copiedRoomCode, setCopiedRoomCode] = useState(false);
   const games = [
     { name: 'tictactoe', available: true },
     { name: 'battleship', available: true },
@@ -40,6 +41,27 @@ function App() {
         setPlayers(data.payload.players);
         setHost(data.payload.isHost);
         setGame(data.payload.game); // set current game selection when joining
+      }
+      if (data.type === 'roomUpdated') {
+        setRoomCode(data.payload.roomCode);
+        setPlayers(data.payload.players);
+        setHost(data.payload.isHost);
+        setGame(data.payload.game);
+        setReady(data.payload.ready);
+        setGameState(null);
+        setInGame(false);
+        setPlayerIndex(null);
+      }
+      if (data.type === 'roomClosed') {
+        alert(data.payload.message);
+        setRoomCode('');
+        setPlayers([]);
+        setHost(false);
+        setGame('');
+        setReady([false, false]);
+        setGameState(null);
+        setInGame(false);
+        setPlayerIndex(null);
       }
       if (data.type === 'gameSelected') {
         setGame(data.payload.game);
@@ -113,6 +135,59 @@ function App() {
   const backToRoom = () => {
     wsRef.current?.send(JSON.stringify({ type: 'backToRoom' }));
   };
+  const copyRoomCode = async () => {
+    if (!roomCode) return;
+
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopiedRoomCode(true);
+      window.setTimeout(() => setCopiedRoomCode(false), 1200);
+    } catch {
+      alert(`Copy this room code: ${roomCode}`);
+    }
+  };
+  const roomPlayers = host
+    ? [
+        {
+          label: 'You',
+          status: 'Host',
+          active: true,
+          tone: 'bg-blue-500 text-white',
+        },
+        {
+          label: players.length > 1 ? 'Guest' : 'Waiting for guest',
+          status:
+            players.length > 1
+              ? ready[1]
+                ? 'Ready'
+                : 'Not ready'
+              : 'Not here yet',
+          active: players.length > 1,
+          tone:
+            players.length > 1
+              ? ready[1]
+                ? 'bg-green-500 text-white'
+                : 'bg-gray-200 text-gray-700'
+              : 'bg-gray-200 text-gray-500',
+        },
+      ]
+    : [
+        {
+          label: 'Host',
+          status: 'Host',
+          active: true,
+          tone: 'bg-blue-500 text-white',
+        },
+        {
+          label: 'You',
+          status: ready[1] ? 'Ready' : 'Not ready',
+          active: true,
+          tone: ready[1]
+            ? 'bg-green-500 text-white'
+            : 'bg-gray-200 text-gray-700',
+        },
+      ];
+
   if (inGame) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
@@ -155,17 +230,47 @@ function App() {
       )}
       {roomCode && (
         <>
-          <div>
-            <h2 className="text-4xl font-bold text-yellow-200">
-              Room: {roomCode}
-            </h2>
-            <p className="text-2xl font-semibold text-yellow-100">
-              Players: {players.length}
-            </p>
-            {/* <h2>Selected Game: {game}</h2> */}
-          </div>
+          <button
+            type="button"
+            onClick={copyRoomCode}
+            className="rounded-2xl border border-yellow-200/30 bg-black/10 px-4 py-2 text-4xl font-bold text-yellow-200 transition hover:bg-black/20 active:scale-[0.99]"
+          >
+            Room: {roomCode}
+            <span className="ml-3 text-sm font-semibold text-yellow-100/80">
+              {copiedRoomCode ? 'Copied' : 'Tap to copy'}
+            </span>
+          </button>
 
-          {/* <span>{host ? '(Host)' : ''}</span> */}
+          <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-left text-sm font-semibold tracking-[0.2em] text-yellow-100/80 uppercase">
+                Players
+              </p>
+              <span className="rounded-full bg-black/20 px-3 py-1 text-xs font-semibold text-yellow-100">
+                {players.length}/2
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {roomPlayers.map((player) => (
+                <div
+                  key={player.label}
+                  className={`flex min-h-28 flex-col items-center justify-center rounded-2xl border border-white/10 px-3 py-4 text-center ${player.tone}`}
+                >
+                  <div
+                    className={`mb-2 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 text-lg font-bold ${player.active ? 'bg-white/15' : 'bg-white/10'}`}
+                  >
+                    {player.label === 'Host'
+                      ? 'H'
+                      : player.label === 'Guest'
+                        ? 'G'
+                        : 'Y'}
+                  </div>
+                  <p className="text-sm font-semibold">{player.label}</p>
+                  <p className="text-xs opacity-80">{player.status}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* {host && ( */}
           <div className="grid h-full w-full grid-cols-1 gap-4 md:grid-cols-3">
@@ -194,11 +299,10 @@ function App() {
           <div className="w-full">
             {!host && (
               <button
-                className={`h-20 w-full rounded-xl text-2xl font-semibold text-white ${ready[1] ? 'bg-blue-500' : 'bg-green-500'}`}
+                className={`h-20 w-full rounded-xl text-2xl font-semibold text-white transition ${ready[1] ? 'bg-blue-500 hover:bg-blue-600' : 'bg-green-500 hover:bg-green-600'}`}
                 onClick={sendReady}
-                disabled={ready[1]}
               >
-                {ready[1] ? 'Ready ✅' : 'Ready'}
+                {ready[1] ? 'Unready' : 'Ready'}
               </button>
             )}
 
