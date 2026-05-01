@@ -102,7 +102,7 @@ function ShipPiece({ ship, scale = 'tray', className = '', onPointerDown }) {
   return (
     <div
       onPointerDown={onPointerDown}
-      className={`${wrapperClasses} ${vertical ? 'flex flex-col' : 'flex flex-row'} ${isTray ? 'gap-1' : 'gap-0.5'} ${className}`}
+      className={`${wrapperClasses} touch-none select-none ${vertical ? 'flex flex-col' : 'flex flex-row'} ${isTray ? 'gap-1' : 'gap-0.5'} ${className}`}
     >
       {Array.from({ length: ship.size }).map((_, index) => (
         <div key={index} className={segmentClasses} />
@@ -275,6 +275,7 @@ export default function Battleship({
     if (gameState?.phase !== 'setup' || hasSubmittedShips) return;
 
     event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     const ship = shipsRef.current.find((item) => item.id === shipId);
     if (!ship) return;
 
@@ -312,7 +313,7 @@ export default function Battleship({
         key={ship.id}
         type="button"
         onPointerDown={handleShipPointerDown(ship.id)}
-        className={`pointer-events-auto relative z-20 h-full w-full cursor-grab active:cursor-grabbing ${isDraggingThisShip ? 'opacity-70' : ''}`}
+        className={`pointer-events-auto relative z-20 h-full w-full cursor-grab touch-none select-none active:cursor-grabbing ${isDraggingThisShip ? 'opacity-70' : ''}`}
         style={style}
       >
         <ShipPiece ship={ship} scale="board" />
@@ -407,6 +408,61 @@ export default function Battleship({
     );
   };
 
+  const renderBattleBoard = ({ variant }) => {
+    const self = gameState?.players?.[playerIndex];
+    const opponent = gameState?.players?.[1 - playerIndex];
+    const attackSource = variant === 'self' ? opponent : self;
+    const showShips = variant === 'self';
+    const attackedCells = attackSource
+      ? [...(attackSource.hits || []), ...(attackSource.misses || [])]
+      : [];
+    const attackedSet = new Set(
+      attackedCells.map((cell) => getShipKey(cell.row, cell.col)),
+    );
+
+    return (
+      <div className="relative aspect-square w-full max-w-[42rem] overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl">
+        <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
+          {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, index) => {
+            const row = Math.floor(index / BOARD_SIZE);
+            const col = index % BOARD_SIZE;
+            const key = getShipKey(row, col);
+            const isAttacked = attackedSet.has(key);
+            const isHit = attackSource?.hits?.some(
+              (cell) => cell.row === row && cell.col === col,
+            );
+
+            let cellClass = 'border border-white/10 bg-slate-950/30';
+            if (isAttacked) {
+              cellClass = isHit
+                ? 'border border-rose-300/90 bg-rose-500/45'
+                : 'border border-slate-300/80 bg-slate-400/45';
+            }
+
+            return (
+              <div
+                key={key}
+                className={`${cellClass} transition-colors`}
+                onClick={() => {
+                  if (variant !== 'enemy') return;
+                  if (!isYourTurn) return;
+                  if (isAttacked) return;
+                  makeMove({ action: 'attack', row, col });
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {showShips && (
+          <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
+            {(self?.ships || []).map((ship) => renderBoardShip(ship))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!gameState) return <div>Loading...</div>;
 
   return (
@@ -445,7 +501,7 @@ export default function Battleship({
                     key={ship.id}
                     ship={ship}
                     scale="tray"
-                    className={`transition-transform ${dragState?.shipId === ship.id ? 'scale-95 opacity-60' : 'opacity-100'}`}
+                    className={`touch-none transition-transform select-none ${dragState?.shipId === ship.id ? 'scale-95 opacity-60' : 'opacity-100'}`}
                     onPointerDown={handleShipPointerDown(ship.id)}
                   />
                 ))}
@@ -484,7 +540,7 @@ export default function Battleship({
       )}
 
       {gameState.phase === 'battle' && (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex w-full flex-col items-center gap-4 px-4 sm:px-6 lg:px-8">
           {gameState.winner == null && (
             <p className="text-white">
               {isYourTurn
@@ -493,43 +549,18 @@ export default function Battleship({
             </p>
           )}
 
-          <div className="flex flex-col gap-4 md:flex-row md:gap-6">
-            <div className="flex flex-col items-center">
+          <div className="grid w-full max-w-7xl grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-8">
+            <div className="flex w-full flex-col items-center gap-2">
               <p className="text-2xl font-semibold text-white">You</p>
-              {renderBoard()}
+              <div className="w-full max-w-[42rem]">
+                {renderBattleBoard({ variant: 'self' })}
+              </div>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex w-full flex-col items-center gap-2">
               <p className="text-2xl font-semibold text-white">Enemy</p>
-              <div className="grid grid-cols-5">
-                {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, i) => {
-                  const row = Math.floor(i / BOARD_SIZE);
-                  const col = i % BOARD_SIZE;
-                  const self = gameState.players?.[playerIndex];
-                  const alreadyAttacked =
-                    self?.hits?.some((h) => h.row === row && h.col === col) ||
-                    self?.misses?.some((m) => m.row === row && m.col === col);
-
-                  let bg = 'bg-slate-100';
-                  if (self?.hits?.some((h) => h.row === row && h.col === col))
-                    bg = 'bg-red-500';
-                  else if (
-                    self?.misses?.some((m) => m.row === row && m.col === col)
-                  )
-                    bg = 'bg-gray-400';
-
-                  return (
-                    <div
-                      key={i}
-                      onClick={() => {
-                        if (!isYourTurn) return;
-                        if (alreadyAttacked) return;
-                        makeMove({ action: 'attack', row, col });
-                      }}
-                      className={`flex h-14 w-14 cursor-pointer items-center justify-center border border-white/10 ${bg}`}
-                    />
-                  );
-                })}
+              <div className="w-full max-w-[42rem]">
+                {renderBattleBoard({ variant: 'enemy' })}
               </div>
             </div>
           </div>
