@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import GameActionButton from '../../components/GameActionButton';
 
 export default function Battleship({
@@ -9,20 +9,10 @@ export default function Battleship({
   backToRoom,
 }) {
   const [ships, setShips] = useState([]);
-  const [confirmed, setConfirmed] = useState(false);
   const [direction, setDirection] = useState('horizontal');
   const shipSizes = [2, 3, 4];
-  const isFreshSetup =
-    gameState?.phase === 'setup' &&
-    gameState.players?.every((player) => (player?.ships?.length || 0) === 0);
-
-  useEffect(() => {
-    if (isFreshSetup) {
-      setShips([]);
-      setConfirmed(false);
-      setDirection('horizontal');
-    }
-  }, [isFreshSetup]);
+  const selfShips = gameState?.players?.[playerIndex]?.ships || [];
+  const hasSubmittedShips = selfShips.length > 0;
 
   const placeShip = (row, col) => {
     const size = shipSizes[ships.length];
@@ -45,13 +35,12 @@ export default function Battleship({
       newShip.push({ row: r, col: c });
     }
 
-    setShips([...ships, newShip]);
+    setShips((prevShips) => [...prevShips, newShip]);
   };
 
   const handleSubmit = () => {
     if (ships.length !== 3) return;
     makeMove({ action: 'placeShips', ships });
-    setConfirmed(true);
   };
 
   const isYourTurn = gameState.currentPlayer === playerIndex;
@@ -102,7 +91,7 @@ export default function Battleship({
                   if (alreadyAttacked) return;
                   onClick(row, col);
                 } else {
-                  if (confirmed) return;
+                  if (hasSubmittedShips) return;
                   onClick(row, col);
                 }
               }}
@@ -147,13 +136,17 @@ export default function Battleship({
 
           <button
             onClick={handleSubmit}
-            className={`rounded px-4 py-2 text-white ${confirmed ? 'bg-green-600' : 'bg-blue-600'}`}
-            disabled={ships.length !== 3 || confirmed}
+            className={`rounded px-4 py-2 text-white ${hasSubmittedShips ? 'bg-green-600' : 'bg-blue-600'}`}
+            disabled={ships.length !== 3 || hasSubmittedShips}
           >
-            {confirmed ? 'Ships Confirmed ✓' : 'Confirm Ships'}
+            {hasSubmittedShips
+              ? 'Ships Confirmed ✓'
+              : ships.length === 3
+                ? 'Start Game'
+                : 'Place 3 Ships'}
           </button>
 
-          {confirmed && (
+          {hasSubmittedShips && (
             <p className="text-yellow-300">Waiting for opponent...</p>
           )}
 

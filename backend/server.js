@@ -304,7 +304,11 @@ wss.on("connection", (ws) => {
         const room = rooms[ws.roomCode];
 
         if (!room || !room.gameState) return;
-        if (room.gameState.winner) return;
+        if (
+          room.gameState.winner !== null &&
+          room.gameState.winner !== undefined
+        )
+          return;
 
         const playerIndex = room.players.indexOf(ws);
 
@@ -362,7 +366,11 @@ wss.on("connection", (ws) => {
         const room = rooms[ws.roomCode];
         if (!room) return;
         if (!room.game) return;
-        if (!room.gameState || !room.gameState.winner) return;
+        if (
+          !room.gameState ||
+          (room.gameState.winner === null || room.gameState.winner === undefined)
+        )
+          return;
 
         const gameHandler = games[room.game];
         if (!gameHandler) return;

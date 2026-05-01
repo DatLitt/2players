@@ -15,9 +15,9 @@ function App() {
   const [copiedRoomCode, setCopiedRoomCode] = useState(false);
   const [score, setScore] = useState({ host: 0, guest: 0 });
   const games = [
-    { name: 'tictactoe', available: true },
-    { name: 'battleship', available: true },
-    { name: '', available: false },
+    { name: 'tictactoe', UI: 'Tic Tac Toe', available: true },
+    { name: 'battleship', UI: 'Battleship', available: true },
+    { name: '', UI: null, available: false },
   ];
 
   useEffect(() => {
@@ -307,8 +307,8 @@ function App() {
                 {!g.available
                   ? `${g.name} (Coming Soon)`
                   : game === g.name
-                    ? `${g.name} ✓`
-                    : g.name}
+                    ? `${g.UI} ✓`
+                    : g.UI}
               </button>
             ))}
           </div>
