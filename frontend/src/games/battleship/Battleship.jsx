@@ -376,7 +376,7 @@ export default function Battleship({
     return (
       <div
         ref={boardRef}
-        className="relative aspect-square w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl"
+        className="relative aspect-square w-full max-w-md overflow-hidden rounded-4xl border border-white/10 bg-linear-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl"
       >
         <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
           {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, index) => {
@@ -419,9 +419,12 @@ export default function Battleship({
     const attackedSet = new Set(
       attackedCells.map((cell) => getShipKey(cell.row, cell.col)),
     );
+    const shipCells = new Set(
+      (self?.ships || []).map((cell) => getShipKey(cell.row, cell.col)),
+    );
 
     return (
-      <div className="relative aspect-square w-full max-w-[42rem] overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl">
+      <div className="relative aspect-square w-full max-w-2xl overflow-hidden rounded-4xl border border-white/10 bg-linear-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl">
         <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
           {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, index) => {
             const row = Math.floor(index / BOARD_SIZE);
@@ -431,8 +434,12 @@ export default function Battleship({
             const isHit = attackSource?.hits?.some(
               (cell) => cell.row === row && cell.col === col,
             );
+            const hasShip = shipCells.has(key);
 
             let cellClass = 'border border-white/10 bg-slate-950/30';
+            if (showShips && hasShip) {
+              cellClass = 'border border-sky-300/70 bg-sky-400/40';
+            }
             if (isAttacked) {
               cellClass = isHit
                 ? 'border border-rose-300/90 bg-rose-500/45'
@@ -453,12 +460,6 @@ export default function Battleship({
             );
           })}
         </div>
-
-        {showShips && (
-          <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
-            {(self?.ships || []).map((ship) => renderBoardShip(ship))}
-          </div>
-        )}
       </div>
     );
   };
@@ -483,7 +484,7 @@ export default function Battleship({
             back to the tray if you want to rotate it again.
           </p>
 
-          <div className="w-full rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
+          <div className="w-full rounded-4xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-semibold tracking-[0.28em] text-sky-100/80 uppercase">
                 Ships
