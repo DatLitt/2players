@@ -1,5 +1,115 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import GameActionButton from '../../components/GameActionButton';
+
+const BOARD_SIZE = 5;
+const SHIP_SIZES = [2, 3, 4];
+
+const createInitialShips = () =>
+  SHIP_SIZES.map((size) => ({
+    id: `ship-${size}`,
+    size,
+    orientation: 'horizontal',
+    placed: false,
+    row: null,
+    col: null,
+  }));
+
+const getShipCells = (ship, row = ship.row, col = ship.col) => {
+  if (row === null || col === null) return [];
+
+  return Array.from({ length: ship.size }, (_, index) => ({
+    row: ship.orientation === 'vertical' ? row + index : row,
+    col: ship.orientation === 'horizontal' ? col + index : col,
+  }));
+};
+
+const getShipKey = (row, col) => `${row}-${col}`;
+
+const getBoardCellFromPoint = (boardRef, clientX, clientY) => {
+  const boardEl = boardRef.current;
+  if (!boardEl) return null;
+
+  const rect = boardEl.getBoundingClientRect();
+  if (
+    clientX < rect.left ||
+    clientX >= rect.right ||
+    clientY < rect.top ||
+    clientY >= rect.bottom
+  ) {
+    return null;
+  }
+
+  const cellSize = rect.width / BOARD_SIZE;
+  const row = Math.floor((clientY - rect.top) / cellSize);
+  const col = Math.floor((clientX - rect.left) / cellSize);
+
+  if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+    return null;
+  }
+
+  return { row, col };
+};
+
+const canPlaceShip = (candidateShip, ships) => {
+  if (candidateShip.row === null || candidateShip.col === null) return false;
+
+  const cells = getShipCells(
+    candidateShip,
+    candidateShip.row,
+    candidateShip.col,
+  );
+  if (cells.length !== candidateShip.size) return false;
+
+  const isOutOfBounds = cells.some(
+    (cell) =>
+      cell.row < 0 ||
+      cell.row >= BOARD_SIZE ||
+      cell.col < 0 ||
+      cell.col >= BOARD_SIZE,
+  );
+  if (isOutOfBounds) return false;
+
+  const occupied = new Set(
+    ships
+      .filter((ship) => ship.placed && ship.id !== candidateShip.id)
+      .flatMap((ship) =>
+        getShipCells(ship, ship.row, ship.col).map((cell) =>
+          getShipKey(cell.row, cell.col),
+        ),
+      ),
+  );
+
+  return !cells.some((cell) => occupied.has(getShipKey(cell.row, cell.col)));
+};
+
+function ShipPiece({ ship, scale = 'tray', className = '', onPointerDown }) {
+  const isTray = scale === 'tray';
+  const isGhost = scale === 'ghost';
+  const vertical = ship.orientation === 'vertical';
+
+  const wrapperClasses = isTray
+    ? 'inline-flex rounded-2xl bg-slate-800/85 p-1 shadow-lg ring-1 ring-white/15'
+    : isGhost
+      ? 'rounded-2xl border-2 border-dashed border-white/80 bg-white/10 p-0.5 shadow-2xl backdrop-blur-sm'
+      : 'rounded-2xl border border-white/10 bg-gradient-to-b from-slate-100 via-slate-300 to-slate-700 p-0.5 shadow-[0_14px_28px_rgba(15,23,42,0.45)]';
+
+  const segmentClasses = isTray
+    ? 'h-8 w-8 rounded-lg border border-white/20 bg-gradient-to-b from-slate-100 via-slate-300 to-slate-500 shadow-inner sm:h-10 sm:w-10'
+    : isGhost
+      ? 'min-h-0 min-w-0 flex-1 rounded-lg border border-white/25 bg-sky-300/40'
+      : 'min-h-0 min-w-0 flex-1 rounded-lg border border-white/20 bg-gradient-to-b from-slate-200 via-slate-400 to-slate-600';
+
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      className={`${wrapperClasses} ${vertical ? 'flex flex-col' : 'flex flex-row'} ${isTray ? 'gap-1' : 'gap-0.5'} ${className}`}
+    >
+      {Array.from({ length: ship.size }).map((_, index) => (
+        <div key={index} className={segmentClasses} />
+      ))}
+    </div>
+  );
+}
 
 export default function Battleship({
   gameState,
@@ -8,97 +118,291 @@ export default function Battleship({
   restartGame,
   backToRoom,
 }) {
-  const [ships, setShips] = useState([]);
-  const [direction, setDirection] = useState('horizontal');
-  const shipSizes = [2, 3, 4];
+  const [ships, setShips] = useState(() => createInitialShips());
+  const [submitted, setSubmitted] = useState(false);
+  const [dragState, setDragState] = useState(null);
+  const [hoverCell, setHoverCell] = useState(null);
+  const boardRef = useRef(null);
+  const shipsRef = useRef(ships);
+  const dragStateRef = useRef(dragState);
+
   const selfShips = gameState?.players?.[playerIndex]?.ships || [];
-  const hasSubmittedShips = selfShips.length > 0;
+  const hasSubmittedShips = submitted || selfShips.length > 0;
+  const visibleShips = hasSubmittedShips ? selfShips : ships;
+  const activeShips = hasSubmittedShips ? selfShips : ships;
+  const activeDragShip = dragState
+    ? ships.find((ship) => ship.id === dragState.shipId)
+    : null;
+  const isYourTurn = gameState?.currentPlayer === playerIndex;
 
-  const placeShip = (row, col) => {
-    const size = shipSizes[ships.length];
-    if (!size) return;
+  useEffect(() => {
+    shipsRef.current = ships;
+  }, [ships]);
 
-    const newShip = [];
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
 
-    for (let i = 0; i < size; i++) {
-      const r = direction === 'vertical' ? row + i : row;
-      const c = direction === 'horizontal' ? col + i : col;
+  useEffect(() => {
+    if (!dragState) return;
 
-      if (r >= 5 || c >= 5) return;
+    const handleMove = (event) => {
+      const currentDrag = dragStateRef.current;
+      if (!currentDrag || event.pointerId !== currentDrag.pointerId) return;
 
-      // prevent overlap
-      const overlap = ships
-        .flat()
-        .some((cell) => cell.row === r && cell.col === c);
-      if (overlap) return;
+      const movedEnough =
+        Math.abs(event.clientX - currentDrag.startX) > 6 ||
+        Math.abs(event.clientY - currentDrag.startY) > 6;
 
-      newShip.push({ row: r, col: c });
-    }
+      setDragState((prev) =>
+        prev
+          ? {
+              ...prev,
+              moved: prev.moved || movedEnough,
+            }
+          : prev,
+      );
 
-    setShips((prevShips) => [...prevShips, newShip]);
-  };
+      setHoverCell(
+        getBoardCellFromPoint(boardRef, event.clientX, event.clientY),
+      );
+    };
+
+    const clearDrag = () => {
+      setDragState(null);
+      setHoverCell(null);
+    };
+
+    const handleUp = (event) => {
+      const currentDrag = dragStateRef.current;
+      if (!currentDrag || event.pointerId !== currentDrag.pointerId) return;
+
+      const ship = shipsRef.current.find(
+        (item) => item.id === currentDrag.shipId,
+      );
+      if (!ship) {
+        clearDrag();
+        return;
+      }
+
+      const moved =
+        currentDrag.moved ||
+        Math.abs(event.clientX - currentDrag.startX) > 6 ||
+        Math.abs(event.clientY - currentDrag.startY) > 6;
+      const targetCell = getBoardCellFromPoint(
+        boardRef,
+        event.clientX,
+        event.clientY,
+      );
+
+      if (!moved) {
+        if (!ship.placed) {
+          setShips((prevShips) =>
+            prevShips.map((item) =>
+              item.id === ship.id
+                ? {
+                    ...item,
+                    orientation:
+                      item.orientation === 'horizontal'
+                        ? 'vertical'
+                        : 'horizontal',
+                  }
+                : item,
+            ),
+          );
+        }
+
+        clearDrag();
+        return;
+      }
+
+      if (targetCell) {
+        const candidateShip = {
+          ...ship,
+          placed: true,
+          row: targetCell.row,
+          col: targetCell.col,
+        };
+
+        if (canPlaceShip(candidateShip, shipsRef.current)) {
+          setShips((prevShips) =>
+            prevShips.map((item) =>
+              item.id === ship.id ? candidateShip : item,
+            ),
+          );
+        }
+      } else if (ship.placed) {
+        setShips((prevShips) =>
+          prevShips.map((item) =>
+            item.id === ship.id
+              ? {
+                  ...item,
+                  placed: false,
+                  row: null,
+                  col: null,
+                }
+              : item,
+          ),
+        );
+      }
+
+      clearDrag();
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+    };
+  }, [dragState]);
 
   const handleSubmit = () => {
-    if (ships.length !== 3) return;
-    makeMove({ action: 'placeShips', ships });
+    const placedShips = activeShips.filter((ship) => ship.placed);
+    if (placedShips.length !== 3) return;
+
+    makeMove({
+      action: 'placeShips',
+      ships: placedShips.map((ship) => getShipCells(ship)),
+    });
+    setSubmitted(true);
   };
 
-  const isYourTurn = gameState.currentPlayer === playerIndex;
+  const handleShipPointerDown = (shipId) => (event) => {
+    if (gameState?.phase !== 'setup' || hasSubmittedShips) return;
 
-  const renderGrid = (onClick, type = 'self') => {
-    const self = gameState.players?.[playerIndex];
-    const opponent = gameState.players?.[1 - playerIndex];
+    event.preventDefault();
+    const ship = shipsRef.current.find((item) => item.id === shipId);
+    if (!ship) return;
+
+    setDragState({
+      shipId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+      wasPlaced: ship.placed,
+    });
+
+    setHoverCell(getBoardCellFromPoint(boardRef, event.clientX, event.clientY));
+  };
+
+  const renderBoardShip = (ship) => {
+    const isDraggingThisShip = dragState?.shipId === ship.id;
+    if (isDraggingThisShip && ship.placed && dragState?.wasPlaced) return null;
+
+    const style =
+      ship.orientation === 'horizontal'
+        ? {
+            gridColumnStart: ship.col + 1,
+            gridColumnEnd: `span ${ship.size}`,
+            gridRowStart: ship.row + 1,
+          }
+        : {
+            gridRowStart: ship.row + 1,
+            gridRowEnd: `span ${ship.size}`,
+            gridColumnStart: ship.col + 1,
+          };
 
     return (
-      <div className="grid grid-cols-5">
-        {Array.from({ length: 25 }).map((_, i) => {
-          const row = Math.floor(i / 5);
-          const col = i % 5;
+      <button
+        key={ship.id}
+        type="button"
+        onPointerDown={handleShipPointerDown(ship.id)}
+        className={`pointer-events-auto relative z-20 h-full w-full cursor-grab active:cursor-grabbing ${isDraggingThisShip ? 'opacity-70' : ''}`}
+        style={style}
+      >
+        <ShipPiece ship={ship} scale="board" />
+      </button>
+    );
+  };
 
-          let bg = 'bg-white';
+  const renderPreviewShip = () => {
+    if (!dragState || !hoverCell || !activeDragShip) return null;
 
-          if (type === 'self') {
-            if (
-              self?.ships?.some((s) => s.row === row && s.col === col) ||
-              ships.flat().some((c) => c.row === row && c.col === col)
-            ) {
-              bg = 'bg-green-400';
+    const previewShip = {
+      ...activeDragShip,
+      placed: true,
+      row: hoverCell.row,
+      col: hoverCell.col,
+    };
+    const isValid = canPlaceShip(previewShip, shipsRef.current);
+    const style =
+      previewShip.orientation === 'horizontal'
+        ? {
+            gridColumnStart: previewShip.col + 1,
+            gridColumnEnd: `span ${previewShip.size}`,
+            gridRowStart: previewShip.row + 1,
+          }
+        : {
+            gridRowStart: previewShip.row + 1,
+            gridRowEnd: `span ${previewShip.size}`,
+            gridColumnStart: previewShip.col + 1,
+          };
+
+    return (
+      <div className="pointer-events-none relative z-30" style={style}>
+        <ShipPiece
+          ship={previewShip}
+          scale="ghost"
+          className={isValid ? 'opacity-80' : 'opacity-90'}
+        />
+      </div>
+    );
+  };
+
+  const renderBoard = () => {
+    const previewShip =
+      dragState && hoverCell && activeDragShip
+        ? {
+            ...activeDragShip,
+            placed: true,
+            row: hoverCell.row,
+            col: hoverCell.col,
+          }
+        : null;
+    const previewCells = previewShip ? getShipCells(previewShip) : [];
+    const previewCellSet = new Set(
+      previewCells.map((cell) => getShipKey(cell.row, cell.col)),
+    );
+    const previewValid = previewShip
+      ? canPlaceShip(previewShip, shipsRef.current)
+      : false;
+
+    return (
+      <div
+        ref={boardRef}
+        className="relative aspect-square w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 shadow-2xl"
+      >
+        <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
+          {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, index) => {
+            const row = Math.floor(index / BOARD_SIZE);
+            const col = index % BOARD_SIZE;
+            const key = getShipKey(row, col);
+            const isPreviewCell = previewCellSet.has(key);
+
+            let cellClass =
+              'border border-white/10 bg-slate-950/30 transition-colors';
+
+            if (isPreviewCell) {
+              cellClass = previewValid
+                ? 'border border-emerald-300/90 bg-emerald-400/45 transition-colors'
+                : 'border border-rose-300/90 bg-rose-500/45 transition-colors';
             }
-            if (opponent?.hits?.some((h) => h.row === row && h.col === col))
-              bg = 'bg-red-500';
-            if (opponent?.misses?.some((m) => m.row === row && m.col === col))
-              bg = 'bg-gray-400';
-          }
 
-          if (type === 'enemy') {
-            if (self?.hits?.some((h) => h.row === row && h.col === col))
-              bg = 'bg-red-500';
-            else if (self?.misses?.some((m) => m.row === row && m.col === col))
-              bg = 'bg-gray-400';
-          }
+            return <div key={key} className={cellClass} />;
+          })}
+        </div>
 
-          const alreadyAttacked =
-            type === 'enemy' &&
-            (self?.hits?.some((h) => h.row === row && h.col === col) ||
-              self?.misses?.some((m) => m.row === row && m.col === col));
-
-          return (
-            <div
-              key={i}
-              onClick={() => {
-                if (type === 'enemy') {
-                  if (!isYourTurn) return;
-                  if (alreadyAttacked) return;
-                  onClick(row, col);
-                } else {
-                  if (hasSubmittedShips) return;
-                  onClick(row, col);
-                }
-              }}
-              className={`flex h-14 w-14 cursor-pointer items-center justify-center border ${bg}`}
-            />
-          );
-        })}
+        <div className="absolute inset-0 grid grid-cols-5 grid-rows-5">
+          {visibleShips
+            .filter((ship) => ship.placed)
+            .map((ship) => renderBoardShip(ship))}
+          {renderPreviewShip()}
+        </div>
       </div>
     );
   };
@@ -117,31 +421,54 @@ export default function Battleship({
       )}
 
       {gameState.phase === 'setup' && (
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-white">
-            Place ship size: {shipSizes[ships.length]}
+        <div className="flex w-full max-w-md flex-col items-center gap-4">
+          <p className="text-center text-white/85">
+            Tap a ship in the tray to rotate it. Drag it onto the board. Drag it
+            back to the tray if you want to rotate it again.
           </p>
-          <button
-            onClick={() =>
-              setDirection(
-                direction === 'horizontal' ? 'vertical' : 'horizontal',
-              )
-            }
-            className="rounded bg-gray-600 px-4 py-2 text-white"
-          >
-            Direction: {direction}
-          </button>
 
-          {renderGrid(placeShip, 'self')}
+          <div className="w-full rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold tracking-[0.28em] text-sky-100/80 uppercase">
+                Ships
+              </p>
+              <p className="text-xs text-slate-300">
+                Tap to rotate, drag to place
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              {ships
+                .filter((ship) => !ship.placed)
+                .map((ship) => (
+                  <ShipPiece
+                    key={ship.id}
+                    ship={ship}
+                    scale="tray"
+                    className={`transition-transform ${dragState?.shipId === ship.id ? 'scale-95 opacity-60' : 'opacity-100'}`}
+                    onPointerDown={handleShipPointerDown(ship.id)}
+                  />
+                ))}
+            </div>
+          </div>
+
+          <div className="w-full">{renderBoard()}</div>
 
           <button
             onClick={handleSubmit}
-            className={`rounded px-4 py-2 text-white ${hasSubmittedShips ? 'bg-green-600' : 'bg-blue-600'}`}
-            disabled={ships.length !== 3 || hasSubmittedShips}
+            className={`w-full rounded-2xl px-4 py-3 text-lg font-semibold text-white transition ${
+              hasSubmittedShips
+                ? 'bg-emerald-600'
+                : 'bg-sky-600 hover:bg-sky-500'
+            }`}
+            disabled={
+              activeShips.filter((ship) => ship.placed).length !== 3 ||
+              hasSubmittedShips
+            }
           >
             {hasSubmittedShips
               ? 'Ships Confirmed ✓'
-              : ships.length === 3
+              : activeShips.filter((ship) => ship.placed).length === 3
                 ? 'Start Game'
                 : 'Place 3 Ships'}
           </button>
@@ -150,7 +477,9 @@ export default function Battleship({
             <p className="text-yellow-300">Waiting for opponent...</p>
           )}
 
-          <p>{ships.length} / 3 ships placed</p>
+          <p className="text-white/75">
+            {activeShips.filter((ship) => ship.placed).length} / 3 ships placed
+          </p>
         </div>
       )}
 
@@ -167,15 +496,41 @@ export default function Battleship({
           <div className="flex flex-col gap-4 md:flex-row md:gap-6">
             <div className="flex flex-col items-center">
               <p className="text-2xl font-semibold text-white">You</p>
-              {renderGrid(() => {}, 'self')}
+              {renderBoard()}
             </div>
 
             <div className="flex flex-col items-center">
               <p className="text-2xl font-semibold text-white">Enemy</p>
-              {renderGrid(
-                (row, col) => makeMove({ action: 'attack', row, col }),
-                'enemy',
-              )}
+              <div className="grid grid-cols-5">
+                {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, i) => {
+                  const row = Math.floor(i / BOARD_SIZE);
+                  const col = i % BOARD_SIZE;
+                  const self = gameState.players?.[playerIndex];
+                  const alreadyAttacked =
+                    self?.hits?.some((h) => h.row === row && h.col === col) ||
+                    self?.misses?.some((m) => m.row === row && m.col === col);
+
+                  let bg = 'bg-slate-100';
+                  if (self?.hits?.some((h) => h.row === row && h.col === col))
+                    bg = 'bg-red-500';
+                  else if (
+                    self?.misses?.some((m) => m.row === row && m.col === col)
+                  )
+                    bg = 'bg-gray-400';
+
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        if (!isYourTurn) return;
+                        if (alreadyAttacked) return;
+                        makeMove({ action: 'attack', row, col });
+                      }}
+                      className={`flex h-14 w-14 cursor-pointer items-center justify-center border border-white/10 ${bg}`}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
