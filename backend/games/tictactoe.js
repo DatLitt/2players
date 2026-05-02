@@ -1,7 +1,7 @@
 export const tictactoe = {
-  initGame: () => ({
+  initGame: (startingPlayer = 0) => ({
     board: Array(9).fill(null),
-    currentPlayer: 0,
+    currentPlayer: startingPlayer,
     winner: null,
   }),
 

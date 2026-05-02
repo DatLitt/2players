@@ -90,6 +90,7 @@ wss.on("connection", (ws) => {
           game: null,
           score: createRoomScore(),
           lastScoredOutcome: null,
+          nextStartingPlayer: 0,
         };
 
         ws.roomCode = roomCode;
@@ -118,6 +119,7 @@ wss.on("connection", (ws) => {
         if (room.players.length === 1) {
           room.score = createRoomScore();
           room.lastScoredOutcome = null;
+          room.nextStartingPlayer = 0;
           room.ready = [false, false];
           room.gameState = null;
         }
@@ -279,7 +281,8 @@ wss.on("connection", (ws) => {
 
         const gameHandler = games[room.game];
         if (gameHandler) {
-          room.gameState = gameHandler.initGame();
+          room.gameState = gameHandler.initGame(room.nextStartingPlayer || 0);
+          room.nextStartingPlayer = 1 - (room.nextStartingPlayer || 0);
         }
         room.lastScoredOutcome = null;
 
@@ -375,7 +378,8 @@ wss.on("connection", (ws) => {
         const gameHandler = games[room.game];
         if (!gameHandler) return;
 
-        room.gameState = gameHandler.initGame();
+        room.gameState = gameHandler.initGame(room.nextStartingPlayer || 0);
+        room.nextStartingPlayer = 1 - (room.nextStartingPlayer || 0);
         room.lastScoredOutcome = null;
 
         room.players.forEach((player) => {
@@ -399,6 +403,7 @@ wss.on("connection", (ws) => {
         room.ready = [false, false];
         room.game = null;
         room.lastScoredOutcome = null;
+        room.nextStartingPlayer = 0;
 
         room.players.forEach((player) => {
           player.send(

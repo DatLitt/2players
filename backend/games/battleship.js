@@ -1,7 +1,7 @@
 export const battleship = {
-  initGame: () => ({
+  initGame: (startingPlayer = 0) => ({
     phase: "setup",
-    currentPlayer: 0,
+    currentPlayer: startingPlayer,
     winner: null,
     players: [
       { ships: [], hits: [], misses: [] },
