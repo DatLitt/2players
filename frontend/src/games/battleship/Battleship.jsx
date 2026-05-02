@@ -88,7 +88,7 @@ function ShipPiece({ ship, scale = 'tray', className = '', onPointerDown }) {
   const vertical = ship.orientation === 'vertical';
 
   const wrapperClasses = isTray
-    ? 'inline-flex rounded-2xl bg-slate-800/85 p-1 shadow-lg ring-1 ring-white/15'
+    ? 'inline-flex h-fit rounded-2xl bg-slate-800/85 p-1 shadow-lg ring-1 ring-white/15'
     : isGhost
       ? 'rounded-2xl border-2 border-dashed border-white/80 bg-white/10 p-0.5 shadow-2xl backdrop-blur-sm'
       : 'rounded-2xl border border-white/10 bg-gradient-to-b from-slate-100 via-slate-300 to-slate-700 p-0.5 shadow-[0_14px_28px_rgba(15,23,42,0.45)]';
