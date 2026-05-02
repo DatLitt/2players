@@ -97,7 +97,7 @@ function ShipPiece({ ship, scale = 'tray', className = '', onPointerDown }) {
     ? 'h-8 w-8 rounded-lg border border-white/20 bg-gradient-to-b from-slate-100 via-slate-300 to-slate-500 shadow-inner sm:h-10 sm:w-10'
     : isGhost
       ? 'min-h-0 min-w-0 flex-1 rounded-lg border border-white/25 bg-sky-300/40'
-      : 'min-h-0 min-w-0 flex-1 rounded-lg border border-white/20 bg-gradient-to-b from-slate-200 via-slate-400 to-slate-600';
+      : 'h-8 min-w-0 flex-1 rounded-lg border border-white/20 bg-blue-500 from-slate-200 via-slate-400 to-slate-600';
 
   return (
     <div
@@ -313,10 +313,10 @@ export default function Battleship({
         key={ship.id}
         type="button"
         onPointerDown={handleShipPointerDown(ship.id)}
-        className={`pointer-events-auto relative z-20 h-full w-full cursor-grab touch-none select-none active:cursor-grabbing ${isDraggingThisShip ? 'opacity-70' : ''}`}
+        className={`pointer-events-auto relative z-20 h-full w-full cursor-grab touch-none rounded-lg border border-white/20 bg-blue-500 select-none active:cursor-grabbing ${isDraggingThisShip ? 'opacity-70' : ''}`}
         style={style}
       >
-        <ShipPiece ship={ship} scale="board" />
+        {/* <ShipPiece ship={ship} scale="board" /> */}
       </button>
     );
   };
@@ -346,11 +346,11 @@ export default function Battleship({
 
     return (
       <div className="pointer-events-none relative z-30" style={style}>
-        <ShipPiece
+        {/* <ShipPiece
           ship={previewShip}
           scale="ghost"
           className={isValid ? 'opacity-80' : 'opacity-90'}
-        />
+        /> */}
       </div>
     );
   };
@@ -553,14 +553,14 @@ export default function Battleship({
           <div className="grid w-full max-w-7xl grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-8">
             <div className="flex w-full flex-col items-center gap-2">
               <p className="text-2xl font-semibold text-white">You</p>
-              <div className="w-full max-w-[42rem]">
+              <div className="w-full max-w-2xl">
                 {renderBattleBoard({ variant: 'self' })}
               </div>
             </div>
 
             <div className="flex w-full flex-col items-center gap-2">
               <p className="text-2xl font-semibold text-white">Enemy</p>
-              <div className="w-full max-w-[42rem]">
+              <div className="w-full max-w-2xl">
                 {renderBattleBoard({ variant: 'enemy' })}
               </div>
             </div>
